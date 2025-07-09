@@ -1,0 +1,6 @@
+WiFi-Estacao-Central
+senha123
+WiFi-Oficina
+senha456
+WiFi-Deposito
+senha789
