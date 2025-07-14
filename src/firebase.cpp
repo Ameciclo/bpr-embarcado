@@ -1,6 +1,7 @@
 #include "firebase.h"
 #include "config.h"
 #include "wifi_scanner.h"
+#include "status_tracker.h"
 #include <WiFiClientSecure.h>
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
@@ -26,7 +27,6 @@ void uploadData() {
   
   String payload = "{\"bike\":\"" + String(config.bikeId) + "\"";
   payload += ",\"timestamp\":" + String(timestamp);
-  payload += ",\"battery\":" + String((int)getBatteryLevel());
   payload += ",\"networks\":[";
   
   int maxNets = min(networkCount, 5);
@@ -84,6 +84,9 @@ void uploadData() {
         }
       }
       dataCount = 0;
+      
+      // Upload status após scans
+      uploadStatus();
     } else {
       Serial.println("Erro no upload - mantendo arquivos locais");
     }
@@ -93,5 +96,8 @@ void uploadData() {
     Serial.println("Falha ao conectar no Firebase");
   }
   
+  // Track disconnection
+  String lastIP = WiFi.localIP().toString();
   WiFi.disconnect();
+  trackConnection("disconnect", lastIP.c_str(), false);
 }

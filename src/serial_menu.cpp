@@ -2,6 +2,7 @@
 #include "config.h"
 #include "wifi_scanner.h"
 #include "firebase.h"
+#include "status_tracker.h"
 #include <LittleFS.h>
 #include <ESP8266WiFi.h>
 #include <Arduino.h>
@@ -14,7 +15,8 @@ void showMenu() {
   Serial.println("4) Mostrar configuracoes");
   Serial.println("5) Ver dados salvos");
   Serial.println("6) Transferir dados (copy/paste)");
-  Serial.println("7) Ativar modo AP/Configuracao");
+  Serial.println("7) Upload status (conexoes/bateria)");
+  Serial.println("8) Ativar modo AP/Configuracao");
   Serial.println("q) Sair do menu");
   Serial.print("Escolha: ");
 }
@@ -146,6 +148,17 @@ void handleSerialMenu() {
         break;
         
       case '7':
+        Serial.println("\n=== UPLOAD STATUS ===");
+        if (connectToBase()) {
+          uploadStatus();
+          WiFi.disconnect();
+        } else {
+          Serial.println("Falha ao conectar na base");
+        }
+        showMenu();
+        break;
+        
+      case '8':
         Serial.println("\n=== ATIVANDO MODO AP ===");
         Serial.println("Reiniciando em modo configuracao...");
         delay(1000);

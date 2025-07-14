@@ -7,6 +7,7 @@
 #include "firebase.h"
 #include "led_control.h"
 #include "serial_menu.h"
+#include "status_tracker.h"
 
 // Global variables
 Config config;

@@ -1,4 +1,5 @@
 #include "wifi_scanner.h"
+#include "status_tracker.h"
 #include <ESP8266WiFi.h>
 #include <LittleFS.h>
 #include <Arduino.h>
@@ -62,6 +63,7 @@ bool connectToBase() {
         Serial.printf("Conectado à base %s!\n", networks[i].ssid);
         Serial.printf("IP obtido: %s\n", WiFi.localIP().toString().c_str());
         Serial.printf("Gateway: %s\n", WiFi.gatewayIP().toString().c_str());
+        trackConnection(networks[i].ssid, WiFi.localIP().toString().c_str(), true);
         return true;
       } else {
         Serial.printf("Falha ao conectar em %s\n", networks[i].ssid);
@@ -74,10 +76,9 @@ bool connectToBase() {
 void storeData() {
   String filename = "/scan_" + String(millis()) + ".json";
   
+  // Formato sem bateria: [timestamp,realTime,[[ssid,bssid,rssi,channel]]]
   String data = "[" + String(millis());
-  data += ",0";
-  data += "," + String((int)getBatteryLevel());
-  data += "," + String(analogRead(A0) > 900 ? "true" : "false");
+  data += ",0"; // realTime (será calculado no upload)
   data += ",[";
   
   int maxNets = min(networkCount, 5);
@@ -96,6 +97,9 @@ void storeData() {
     file.close();
     dataCount++;
   }
+  
+  // Track battery separately
+  trackBattery(getBatteryLevel());
 }
 
 float getBatteryLevel() {
