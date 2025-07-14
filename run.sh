@@ -18,6 +18,7 @@ show_menu() {
     echo "7) Compilar apenas (sem upload)"
     echo "8) Limpar build"
     echo "9) Auto-detectar porta"
+    echo "0) Aguardar dispositivo"
     echo "q) Sair"
     echo "=================================="
     echo -n "Escolha uma opção: "
@@ -66,6 +67,31 @@ configure_permissions() {
     echo "⚠ Pode ser necessário fazer logout/login para aplicar as mudanças"
 }
 
+wait_for_device() {
+    echo "Aguardando ESP8266..."
+    echo "Pressione ENTER quando o dispositivo estiver conectado, ou 'q' para cancelar"
+    
+    while true; do
+        # Verificar se há entrada do usuário
+        if read -t 1 -n 1 input 2>/dev/null; then
+            if [[ $input == "q" ]] || [[ $input == "Q" ]]; then
+                echo "\nCancelado pelo usuário"
+                return 1
+            fi
+        fi
+        
+        # Verificar se dispositivo apareceu
+        CURRENT_PORT=$(ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null | head -n1)
+        if [ -n "$CURRENT_PORT" ]; then
+            PORT="$CURRENT_PORT"
+            echo "\n✓ ESP8266 detectado em: $PORT"
+            return 0
+        fi
+        
+        echo -n "."
+    done
+}
+
 while true; do
     show_menu
     read -r choice
@@ -73,10 +99,30 @@ while true; do
     case $choice in
         1)
             echo "=== COMPILAR E UPLOAD ==="
-            check_port
-            echo "Iniciando upload..."
-            pio run --target upload --upload-port $PORT
-            echo "Upload concluído!"
+            echo "Compilando primeiro..."
+            pio run
+            if [ $? -eq 0 ]; then
+                echo "✓ Compilação OK! Verificando porta para upload..."
+                # Re-verificar porta antes do upload
+                CURRENT_PORT=$(ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null | head -n1)
+                if [ -n "$CURRENT_PORT" ]; then
+                    PORT="$CURRENT_PORT"
+                    echo "Porta detectada: $PORT"
+                    echo "Iniciando upload..."
+                    pio run --target upload --upload-port $PORT
+                    echo "Upload concluído!"
+                else
+                    echo "✗ ESP8266 não encontrado."
+                    echo "Reconecte o cabo USB e pressione ENTER, ou 'q' para cancelar"
+                    if wait_for_device; then
+                        echo "Tentando upload novamente..."
+                        pio run --target upload --upload-port $PORT
+                        echo "Upload concluído!"
+                    fi
+                fi
+            else
+                echo "✗ Erro na compilação"
+            fi
             ;;
         2)
             echo "=== UPLOAD SISTEMA DE ARQUIVOS ==="
@@ -84,21 +130,35 @@ while true; do
             echo -n "Continuar? (s/N): "
             read -r confirm
             if [[ $confirm =~ ^[Ss]$ ]]; then
-                check_port
-                echo "Fazendo upload do sistema de arquivos..."
-                pio run --target uploadfs --upload-port $PORT
-                echo "Upload FS concluído!"
+                # Re-verificar porta antes do upload
+                CURRENT_PORT=$(ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null | head -n1)
+                if [ -n "$CURRENT_PORT" ]; then
+                    PORT="$CURRENT_PORT"
+                    echo "Porta detectada: $PORT"
+                    echo "Fazendo upload do sistema de arquivos..."
+                    pio run --target uploadfs --upload-port $PORT
+                    echo "Upload FS concluído!"
+                else
+                    echo "✗ ESP8266 não encontrado. Reconecte o cabo USB."
+                fi
             else
                 echo "Upload cancelado"
             fi
             ;;
         3)
             echo "=== MONITOR SERIAL ==="
-            echo "Conectando ao monitor serial..."
-            echo "Para sair: Ctrl+C"
-            echo "Para menu da bike: digite 'm'"
-            echo "=========================="
-            pio device monitor --baud 115200 --port $PORT
+            # Re-verificar porta antes do monitor
+            CURRENT_PORT=$(ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null | head -n1)
+            if [ -n "$CURRENT_PORT" ]; then
+                PORT="$CURRENT_PORT"
+                echo "Conectando ao monitor serial em $PORT..."
+                echo "Para sair: Ctrl+C"
+                echo "Para menu da bike: digite 'm'"
+                echo "=========================="
+                pio device monitor --baud 115200 --port $PORT
+            else
+                echo "✗ ESP8266 não encontrado. Reconecte o cabo USB."
+            fi
             ;;
         4)
             echo "=== VERIFICAR CONEXÃO ==="
@@ -140,6 +200,10 @@ while true; do
             else
                 echo "✗ Nenhuma porta encontrada"
             fi
+            ;;
+        0)
+            echo "=== AGUARDAR DISPOSITIVO ==="
+            wait_for_device
             ;;
         q|Q)
             echo "Saindo..."
