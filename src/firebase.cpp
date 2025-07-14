@@ -64,10 +64,13 @@ void uploadData() {
     client.print("Connection: close\r\n\r\n");
     client.print(payload);
     
-    delay(1000);
+    delay(500);
     String response = "";
-    while (client.available()) {
+    int timeout = 0;
+    while (client.available() && timeout < 50) {
       response += client.readString();
+      delay(10);
+      timeout++;
     }
     
     Serial.println("Resposta Firebase:");

@@ -17,6 +17,7 @@ show_menu() {
     echo "6) Upload forçando porta específica"
     echo "7) Compilar apenas (sem upload)"
     echo "8) Limpar build"
+    echo "9) Auto-detectar porta"
     echo "q) Sair"
     echo "=================================="
     echo -n "Escolha uma opção: "
@@ -24,19 +25,34 @@ show_menu() {
 
 check_port() {
     echo "Verificando portas USB disponíveis..."
-    if ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null; then
-        echo "✓ Portas encontradas"
+    
+    # Verificar portas USB seriais
+    USB_PORTS=$(ls /dev/ttyUSB* 2>/dev/null)
+    ACM_PORTS=$(ls /dev/ttyACM* 2>/dev/null)
+    
+    if [ -n "$USB_PORTS" ] || [ -n "$ACM_PORTS" ]; then
+        echo "✓ Portas encontradas:"
+        [ -n "$USB_PORTS" ] && echo "USB: $USB_PORTS"
+        [ -n "$ACM_PORTS" ] && echo "ACM: $ACM_PORTS"
+        
         echo "Porta configurada: $PORT"
         if [ -e "$PORT" ]; then
             echo "✓ Porta $PORT está disponível"
+            # Verificar se é acessível
+            if [ -r "$PORT" ] && [ -w "$PORT" ]; then
+                echo "✓ Porta $PORT tem permissões corretas"
+            else
+                echo "⚠ Porta $PORT sem permissões (execute opção 5)"
+            fi
         else
             echo "⚠ Porta $PORT não encontrada"
-            echo "Portas disponíveis:"
-            ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null || echo "Nenhuma porta USB encontrada"
+            FIRST_PORT=$(echo "$USB_PORTS $ACM_PORTS" | awk '{print $1}')
+            [ -n "$FIRST_PORT" ] && echo "Sugestão: use $FIRST_PORT"
         fi
     else
         echo "✗ Nenhuma porta USB encontrada"
         echo "Verifique se o ESP8266 está conectado"
+        echo "Dica: Desconecte e reconecte o cabo USB"
     fi
 }
 
@@ -114,6 +130,16 @@ while true; do
             echo "Limpando arquivos de build..."
             pio run --target clean
             echo "Build limpo!"
+            ;;
+        9)
+            echo "=== AUTO-DETECTAR PORTA ==="
+            DETECTED_PORT=$(ls /dev/ttyUSB* /dev/ttyACM* 2>/dev/null | head -n1)
+            if [ -n "$DETECTED_PORT" ]; then
+                PORT="$DETECTED_PORT"
+                echo "✓ Porta detectada e configurada: $PORT"
+            else
+                echo "✗ Nenhuma porta encontrada"
+            fi
             ;;
         q|Q)
             echo "Saindo..."

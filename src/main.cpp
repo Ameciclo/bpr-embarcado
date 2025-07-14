@@ -21,6 +21,7 @@ bool timeSync = false;
 unsigned long lastLedBlink = 0;
 int ledState = LOW;
 int ledStep = 0;
+unsigned long lastStatusUpload = 0;
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "pool.ntp.org", -3 * 3600, 60000);
 
@@ -86,14 +87,19 @@ void loop() {
       Serial.println("\n=== MENU ATIVADO ===");
       showMenu();
       
-      while (true) {
+      unsigned long menuStart = millis();
+      while (millis() - menuStart < 30000) { // Timeout 30s
         handleSerialMenu();
         if (Serial.available() && (Serial.peek() == 'q' || Serial.peek() == 'Q')) {
           Serial.read();
           Serial.println("\nVoltando ao modo normal...");
           break;
         }
-        delay(100);
+        delay(50); // Reduzido para ser mais responsivo
+        yield(); // Permite outras tarefas do ESP8266
+      }
+      if (millis() - menuStart >= 30000) {
+        Serial.println("\nMenu timeout - voltando ao modo normal...");
       }
     } else {
       Serial.read();
@@ -105,10 +111,21 @@ void loop() {
 
   config.isAtBase = checkAtBase();
 
-  if (config.isAtBase && dataCount > 0) {
+  if (config.isAtBase) {
     if (connectToBase()) {
       syncTime();
-      uploadData();
+      
+      // Upload scans se houver dados
+      if (dataCount > 0) {
+        uploadData();
+      }
+      
+      // Upload status automaticamente a cada 5 minutos
+      unsigned long now = millis();
+      if (now - lastStatusUpload > 300000) { // 5 minutos
+        uploadStatus();
+        lastStatusUpload = now;
+      }
     }
   }
 

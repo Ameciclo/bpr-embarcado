@@ -57,8 +57,10 @@ void trackBattery(float percentage) {
 }
 
 void uploadStatus() {
-  if (strlen(config.firebaseUrl) == 0)
+  if (strlen(config.firebaseUrl) == 0) {
+    Serial.println("Firebase não configurado para status");
     return;
+  }
 
   Serial.println("=== UPLOAD STATUS ===");
   
@@ -106,10 +108,13 @@ void uploadStatus() {
     client.print("Connection: close\r\n\r\n");
     client.print(payload);
     
-    delay(1000);
+    delay(500); // Reduzido para não bloquear muito
     String response = "";
-    while (client.available()) {
+    int timeout = 0;
+    while (client.available() && timeout < 50) { // Timeout para não travar
       response += client.readString();
+      delay(10);
+      timeout++;
     }
     
     if (response.indexOf("200 OK") > 0) {

@@ -102,6 +102,7 @@ void handleSerialMenu() {
                 Serial.printf("Conteúdo: %s\n", content.c_str());
               }
               Serial.println("---");
+              yield(); // Permite outras tarefas
               if (count >= 5) {
                 Serial.println("(mostrando apenas os primeiros 5 arquivos)");
                 break;
@@ -137,6 +138,7 @@ void handleSerialMenu() {
                 Serial.print(content);
               }
               first = false;
+              yield(); // Permite outras tarefas
             }
           }
           Serial.println("");
